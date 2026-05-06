@@ -1,0 +1,79 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      function isValidUser(data) {
+        return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
+               data.keys().size() <= 6 &&
+               data.uid == request.auth.uid &&
+               data.email is string && data.email.size() <= 255 &&
+               data.createdAt == (resource == null ? request.time : resource.data.createdAt);
+      }
+
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'updatedAt']) &&
+                    incoming().updatedAt == request.time;
+    }
+
+    // Applications Collection
+    match /applications/{applicationId} {
+      function isValidApplication(data) {
+        return data.keys().hasAll(['userId', 'vehicleType', 'status', 'fullName', 'createdAt']) &&
+               data.keys().size() <= 8 &&
+               data.userId == request.auth.uid &&
+               data.vehicleType in ['car', 'bike', 'scooter'] &&
+               data.status in ['pending', 'approved', 'rejected'] &&
+               data.fullName is string && data.fullName.size() <= 100 &&
+               data.createdAt == (resource == null ? request.time : resource.data.createdAt);
+      }
+
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn() && 
+                    isValidId(applicationId) && 
+                    isValidApplication(incoming()) &&
+                    incoming().status == 'pending';
+                    
+      allow update: if isSignedIn() && 
+                    resource.data.userId == request.auth.uid &&
+                    isValidApplication(incoming()) &&
+                    existing().status == 'pending' &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'cnic', 'city', 'updatedAt', 'vehicleType']) &&
+                    incoming().updatedAt == request.time;
+
+      allow delete: if isSignedIn() && 
+                    resource.data.userId == request.auth.uid && 
+                    existing().status == 'pending';
+    }
+  }
+}

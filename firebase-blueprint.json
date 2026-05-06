@@ -1,0 +1,44 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "Application": {
+      "title": "Application",
+      "description": "EV Electrification Application",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "vehicleType": { "type": "string", "enum": ["car", "bike", "scooter"] },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "fullName": { "type": "string" },
+        "cnic": { "type": "string" },
+        "city": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "vehicleType", "status", "fullName", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents"
+    },
+    "/applications/{applicationId}": {
+      "schema": "Application",
+      "description": "Applications for the EV program"
+    }
+  }
+}
